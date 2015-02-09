@@ -100,35 +100,33 @@ def pickCoin(pA):
     else:
         return 'B'
 
-# main
 
+def run(pA = 0.5, theta_A_real = 0.5, theta_B_real = 0.5, n_observations = 1000, n_flips = 100):
 
-# probabilities of getting a specific coin
-pA = 0.5
-# pB = 0.5 #pB can be inferred from 1-pA
+    # generate data
+    experiments = generateData(theta_A_real, theta_B_real, n_observations, n_flips, pA)
 
-# probabilities of a given coin getting heads
-theta_A = 0.6
-theta_B = 0.5
+    # initialization
+    theta_A = random.random()
+    theta_B = random.random()
 
-# generate data
-experiments = generateData(0.6, 0.5, 1000, 100, pA)
+    # iterations and convergence
+    iterations = 0
+    max_iterations = 50
+    eps = 0.0001
+    theta_A_old, theta_B_old = float("inf"), float("inf")
 
-# iterations and convergence
-iterations = 0
-max_iterations = 50
-eps = 0.0001
-theta_A_old, theta_B_old = float("inf"), float("inf")
+    header = ['t','Theta_A', 'Theta_B']
+    print "\t".join(header)
 
-header = ['t','Theta_A', 'Theta_B']
-print "\t".join(header)
-
-# test for convergence and limit the maximum number of convergence
-while (abs(theta_A - theta_A_old) > eps) or (abs(theta_B - theta_B_old) > eps) and (iterations < max_iterations):
-    theta_A_old = theta_A
-    theta_B_old = theta_B
-    
-    print "%d\t%.3f\t%.3f" % (iterations, theta_A, theta_B)
-    completions      = stepE(experiments, theta_A, theta_B)
-    theta_A, theta_B = stepM(completions)
-    iterations += 1
+    # test for convergence and limit the maximum number of convergence
+    while ((abs(theta_A - theta_A_old) > eps) or (abs(theta_B - theta_B_old) > eps))\
+          and (iterations < max_iterations):
+        
+        theta_A_old = theta_A
+        theta_B_old = theta_B
+        
+        print "%d\t%.3f\t%.3f" % (iterations, theta_A, theta_B)
+        completions      = stepE(experiments, theta_A, theta_B)
+        theta_A, theta_B = stepM(completions)
+        iterations += 1
