@@ -21,7 +21,7 @@ def countHeads(experiment):
 def binom(trials, x, p):
     return (math.factorial(trials) / (math.factorial(x) * math.factorial(trials - x))) * (p ** x) * ((1-p) ** (trials - x))
 
-def stepE(experiments, theta_A, theta_B):
+def stepE(experiments, pA_hat, theta_A, theta_B):
     """
     Compute a probability distribution over possible completions using the current parameters
     """
@@ -33,11 +33,12 @@ def stepE(experiments, theta_A, theta_B):
             completions[nbr] = {'theta_A':[], 'theta_B':[]}
         headsCount  = countHeads(experiment)
         tailsCount  = trials - headsCount
-        binom_A     = binom(trials, headsCount, theta_A)
-        binom_B     = binom(trials, headsCount, theta_B)
+        binom_A     = binom(trials, headsCount, theta_A) * pA_hat
+        binom_B     = binom(trials, headsCount, theta_B) * (1 - pA_hat)
         binom_total = binom_A + binom_B
         norm_A      = binom_A / binom_total
         norm_B      = binom_B / binom_total
+        completions[nbr]['pA_hat']  = norm_A / len(experiments)
         completions[nbr]['theta_A'] = [norm_A * headsCount, norm_A * tailsCount] 
         completions[nbr]['theta_B'] = [norm_B * headsCount, norm_B * tailsCount]
     return completions
@@ -53,18 +54,20 @@ def stepM(completions):
     tails_A = 0.
     heads_B = 0.
     tails_B = 0.
+    pA_sum  = 0.
     for nbr in completions:
         heads_A += completions[nbr]['theta_A'][0]
         tails_A += completions[nbr]['theta_A'][1]
         heads_B += completions[nbr]['theta_B'][0]
         tails_B += completions[nbr]['theta_B'][1]
+        pA_sum  += completions[nbr]['pA_hat']
 
     updated_theta_A = heads_A / (heads_A+tails_A)
     updated_theta_B = heads_B / (heads_B+tails_B)
-    return updated_theta_A, updated_theta_B
+    return pA_sum, updated_theta_A, updated_theta_B
 
 
-def generateData(theta_A, theta_B, n_observations, n_flips, pA):
+def generateData(pA, theta_A, theta_B, n_observations, n_flips):
     experiments = dict()
         
     for n in range(n_observations):
@@ -104,9 +107,10 @@ def pickCoin(pA):
 def run(pA = 0.5, theta_A_real = 0.5, theta_B_real = 0.5, n_observations = 1000, n_flips = 100):
 
     # generate data
-    experiments = generateData(theta_A_real, theta_B_real, n_observations, n_flips, pA)
+    experiments = generateData(pA, theta_A_real, theta_B_real, n_observations, n_flips)
 
-    # initialization
+    # initialization: initialize pA, theta_A, theta_B
+    pA_hat  = random.random()
     theta_A = random.random()
     theta_B = random.random()
 
@@ -114,19 +118,20 @@ def run(pA = 0.5, theta_A_real = 0.5, theta_B_real = 0.5, n_observations = 1000,
     iterations = 0
     max_iterations = 50
     eps = 0.0001
-    theta_A_old, theta_B_old = float("inf"), float("inf")
+    pA_hat_old, theta_A_old, theta_B_old = float("inf"), float("inf"), float("inf")
 
-    header = ['t','Theta_A', 'Theta_B']
+    header = ['t', 'pA_sum', 'Theta_A', 'Theta_B']
     print "\t".join(header)
 
     # test for convergence and limit the maximum number of convergence
-    while ((abs(theta_A - theta_A_old) > eps) or (abs(theta_B - theta_B_old) > eps))\
+    while ((abs(theta_A - theta_A_old) > eps) or (abs(theta_B - theta_B_old) > eps) or (abs(pA_hat - pA_hat_old) > eps))\
           and (iterations < max_iterations):
-        
+
+        pA_hat_old  = pA_hat
         theta_A_old = theta_A
         theta_B_old = theta_B
         
-        print "%d\t%.3f\t%.3f" % (iterations, theta_A, theta_B)
-        completions      = stepE(experiments, theta_A, theta_B)
-        theta_A, theta_B = stepM(completions)
+        print "%d\t%.3f\t%.3f\t%.3f" % (iterations, pA_hat, theta_A, theta_B)
+        completions      = stepE(experiments, pA_hat, theta_A, theta_B)
+        pA_hat, theta_A, theta_B = stepM(completions)
         iterations += 1
